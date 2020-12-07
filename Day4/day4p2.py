@@ -2,9 +2,10 @@
 import os
 import re
 
-# idRegex = re.compile(r'((\w{3}:(#)?\w)+\n)')
 idRegex = re.compile(r'(\w{3})+:(#?\w+)')
-heightRegex = re.compile(r'((\d{3})(cm))|((\d{2})(in))')
+heightRegex = re.compile(r'((\d{3})(cm))|((\d{2,3})(in))')
+hairColorRegex = re.compile(r'#[a-f0-9]{6}')
+passportIdRegex = re.compile(r'^\d{9}$')
 
 requiredFields = [
     'hcl',
@@ -24,17 +25,48 @@ requiredFields = [
 # ecl : eye color : one of (amb blu brn gry grn hzl oth)
 # pid : passport id : 9 digit number including leading zeroes
 
+def validatePassportId(passportId):
+    p = passportIdRegex.match(passportId)
+    if p:
+        print(f'pid is valid {p.group()}')
+        return True
+    else:
+        print(f'!pid is invalid {passportId}')
+        return False
+
+def validateEyeColor(color):
+    VALID_COLORS = [
+        'amb',
+        'blu',
+        'brn',
+        'gry',
+        'grn',
+        'hzl',
+        'oth'
+    ]
+    if color in VALID_COLORS:
+        print(f'ecl is valid {color}')
+        return True
+    else:
+        print(f'!ecl is invalid {color}')
+        return False
+
+def validateHairColor(color):
+    c = hairColorRegex.match(color)
+    if c:
+        print(f'hcl is valid {c.group()}')
+        return True
+    else:
+        print(f'!hcl is invalid {color}')
+        return False
 
 def validateHeight(height):
     h = heightRegex.findall(height)
     newh = [tuple(' '.join(x).split()) for x in h]
-    # print(newh)
     if len(newh) > 0:
         if 'cm' in newh[0]:
-            #print(f'height is in cm: {height}')
             return validateMinMaxNumber('hgt (cm)', int(newh[0][1]), 150, 193)
         elif 'in' in newh[0]:
-            #print(f'height is in inches: {height}')
             return validateMinMaxNumber('hgt (in)', int(newh[0][1]), 59, 76)
         else:
             print(f'!hgt is invalid {height}')
@@ -55,6 +87,7 @@ def validateMinMaxNumber(name, number, MIN, MAX):
 
 path = os.getcwd()
 FILE_NAME = 'day4input.txt'
+# FILE_NAME = 'day4test2.txt'
 theFile = os.path.join(path, FILE_NAME)
 fileExists = os.path.isfile(theFile)
 
@@ -62,28 +95,24 @@ if fileExists:
     fileContent = open(theFile, 'r')
     print(f'The file {FILE_NAME} exists in {path}')
     content = fileContent.read()
-    # print(content)
     data = content.split("\n\n")
     validAmount = 0
 
     for person in data:
         personInfo = idRegex.findall(person)
         personalRequiredFields = 0
-        isValid = False
         personFields = []
-        personFieldsMissing = []
         personId = 0
         personData = {}
         validFields = []
 
         for item in personInfo:
-            # print(item)
             personFields.append(item[0])
             personData[item[0]] = [item[1]]
             if item[0] == 'pid':
                 personId = item[1]
 
-        print(f'\nnew person: {personId}')
+        print(f'\nNEW PERSON ({personId})')
 
         for reqFld in requiredFields:
             if reqFld in personFields:
@@ -98,24 +127,32 @@ if fileExists:
                         'eyr', int(personData[reqFld][0]), 2020, 2030))
                 elif reqFld == 'hgt':
                     validFields.append(validateHeight(personData[reqFld][0]))
+                elif reqFld == 'hcl':
+                    validFields.append(validateHairColor(personData[reqFld][0]))
+                elif reqFld == 'ecl':
+                    validFields.append(validateEyeColor(personData[reqFld][0]))
+                elif reqFld == 'pid':
+                    validFields.append(validatePassportId(personData[reqFld][0]))
                 else:
-                    print(f'reqFld {reqFld} is existing')
+                    print(f'{reqFld} is existing')
                 personalRequiredFields += 1
             else:
-                print(f'reqFld {reqFld} is invalid')
-                personFieldsMissing.append(reqFld)
+                print(f'{reqFld} is missing')
+                validFields.append(False)
+
+        print(f'SUMMARY\nTotal fields in passport: {personalRequiredFields} / 7')
 
         if personalRequiredFields > 6:
-            isValid = True
-            validAmount += 1
+            if False in validFields:
+                print(f'Validation of fields: {validFields}')
+                print('Not all fields are valid')
+            else:
+                print('All fields are valid')
+                validAmount += 1
+                print(f'VALID AMOUNT (counting): {validAmount}')
         else:
-            print('Missing fields:')
-            for fld in personFieldsMissing:
-                print(f'\t- {fld}')
-        print(f'personal required fields: {personalRequiredFields}')
-        print(f'missing fields validation, valid: {isValid}\n')
-        print(f'validation of fields: {validFields}')
+            print('Not all required fields are existing')
 
-    print(f'VALID AMOUNT: {validAmount}')
+    print(f'\nVALID AMOUNT TOTAL: {validAmount}\n')
 
     fileContent.close()
